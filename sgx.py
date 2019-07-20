@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-
+import json
 import requests
+import xmltodict
 from constants import HistoricPeriods
 
 
@@ -25,7 +26,7 @@ class SGX:
         )
         return data
 
-    def get_all_stocks(self):
+    def get_all_stocks_names(self):
         """
         Fetches a list of all mainboard stocks
 
@@ -53,6 +54,97 @@ class SGX:
             additional_data = self.get_stocks(start=i)['data']
             total_data.extend(additional_data)
         return total_data
+
+    def get_all_stocks_attributes(self):
+        payload = '''
+            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
+            <s:Header>
+                <a:To>http://api.trkd.thomsonreuters.com/api/Screener/Screener.svc</a:To>
+                <a:MessageID>izChnkc4BTDHbKw4jY5X0TREo6BPePOa</a:MessageID>
+                <a:Action>http://www.reuters.com/ns/2009/10/01/webservices/rkd/Screener_1/Calculate_1</a:Action>
+                <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
+                <ApplicationID></ApplicationID>
+                <Token></Token>
+                </Authorization>
+            </s:Header>
+            <s:Body>
+                <Calculate_Request_1 xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns="http://www.reuters.com/ns/2009/10/01/webservices/rkd/Screener_1">
+                <criteria content="ctAll">(is in set({Exchange},[SIN]).AND.{Active}).OR.(is in set({ric},[AVJ.AX,BLTA.JK,0854.HK,TPGC.KL,APW.AX,1145.HK,UOS.AX,0143.HK,IKEN.KL,PRU.L,0255.HK,5344.T,6981.T,8604.T,STA.BK,MSCB.KL,LONN.S,0834.HK,IHHH.KL,1130.HK,0069.HK,8923.T,0693.HK,0903.HK,1298.HK,EMAS.OL]))</criteria>
+                <form>
+                    <col name="Exchange" />
+                    <col name="ExchangeCountryCode" />
+                    <col name="Name" />
+                    <col name="Ticker" />
+                    <col name="RIC" />
+                    <col name="MktCap" />
+                    <col name="SalesTTM" />
+                    <col name="PEExclXorTTM" />
+                    <col name="YIELD" />
+                    <col name="Pr4W%Chg" />
+                    <col name="Pr13W%Chg" />
+                    <col name="Pr26W%Chg" />
+                    <col name="Pr52W%Chg" />
+                    <col name="NPMgn%TTM" />
+                    <col name="ROE%TTM" />
+                    <col name="Pr2CashFlTTM" />
+                    <col name="DbtTot2EqPYQ" />
+                    <col name="Sales%ChgTTM" />
+                    <col name="SectorDescr" />
+                    <col name="PriceCurrCode" />
+                    <col name="Pr2BookPQ" />
+                    <pos rows="750" row="1" />
+                </form>
+                </Calculate_Request_1>
+            </s:Body>
+            </s:Envelope>
+        '''
+        resp = requests.get(
+            "https://apitrkd.trkd-hs.com/apitrkd/api/Screener/Screener.svc",
+            params=dict(
+                id='public',
+                # token might change 🤔
+                token='1Le8/lo/ni+HhRttcXs/h+iLkXECxL4HqLUVuGNK2YEvaQjHh8E6+6psij/jP3Nz'
+            ),
+            data=payload,
+            headers={
+                'Content-Type': 'application/soap+xml'
+            }
+        )
+
+        attributes = [
+            "exchange",
+            "exchange_country_code",
+            "name",
+            "ticker",
+            "ric",
+            "market_cap",
+            "total_revenue",
+            "price_to_earnings",
+            "yield",
+            "4_week_change",
+            "13_week_change",
+            "26_week_change",
+            "52_week_change",
+            "net_profit",
+            "returns_over_earnings",
+            "price_to_cash_flow",
+            "debt_over_equity",
+            "1_year_revenue_change",
+            "sector",
+            "currency",
+            "price_over_book"
+        ]
+        raw_data = [
+            result['v'] for result in xmltodict.parse(
+                resp.content
+            )['s:Envelope']['s:Body']['Calculate_Response_1']['rs']['r']]
+        data = [
+            {
+                attributes[i]: (v if isinstance(v, str) else None) for i, v in enumerate(stock)
+            } for stock in raw_data
+        ]
+        return data
 
     def get_basic_info(self, stock_code):
         """
@@ -126,6 +218,7 @@ class SGX:
 
 if __name__ == "__main__":
     sgx = SGX()
-    # print(sgx.get_all_stocks())
+    # print(sgx.get_all_stocks_names())
     # print(sgx.get_basic_info('Z74'))
     # print(sgx.get_historic_data('Z74', period=HistoricPeriods.ONE_YEAR))
+    # print(sgx.get_all_stocks_attributes())
