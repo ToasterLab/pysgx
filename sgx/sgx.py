@@ -2,7 +2,9 @@
 import json
 import requests
 import xmltodict
+
 from constants import HistoricPeriods
+from soap_requests import SoapRequests
 
 
 class SGX:
@@ -56,49 +58,7 @@ class SGX:
         return total_data
 
     def get_all_stocks_attributes(self):
-        payload = '''
-            <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
-            <s:Header>
-                <a:To>http://api.trkd.thomsonreuters.com/api/Screener/Screener.svc</a:To>
-                <a:MessageID>izChnkc4BTDHbKw4jY5X0TREo6BPePOa</a:MessageID>
-                <a:Action>http://www.reuters.com/ns/2009/10/01/webservices/rkd/Screener_1/Calculate_1</a:Action>
-                <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
-                <ApplicationID></ApplicationID>
-                <Token></Token>
-                </Authorization>
-            </s:Header>
-            <s:Body>
-                <Calculate_Request_1 xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                xmlns="http://www.reuters.com/ns/2009/10/01/webservices/rkd/Screener_1">
-                <criteria content="ctAll">(is in set({Exchange},[SIN]).AND.{Active}).OR.(is in set({ric},[AVJ.AX,BLTA.JK,0854.HK,TPGC.KL,APW.AX,1145.HK,UOS.AX,0143.HK,IKEN.KL,PRU.L,0255.HK,5344.T,6981.T,8604.T,STA.BK,MSCB.KL,LONN.S,0834.HK,IHHH.KL,1130.HK,0069.HK,8923.T,0693.HK,0903.HK,1298.HK,EMAS.OL]))</criteria>
-                <form>
-                    <col name="Exchange" />
-                    <col name="ExchangeCountryCode" />
-                    <col name="Name" />
-                    <col name="Ticker" />
-                    <col name="RIC" />
-                    <col name="MktCap" />
-                    <col name="SalesTTM" />
-                    <col name="PEExclXorTTM" />
-                    <col name="YIELD" />
-                    <col name="Pr4W%Chg" />
-                    <col name="Pr13W%Chg" />
-                    <col name="Pr26W%Chg" />
-                    <col name="Pr52W%Chg" />
-                    <col name="NPMgn%TTM" />
-                    <col name="ROE%TTM" />
-                    <col name="Pr2CashFlTTM" />
-                    <col name="DbtTot2EqPYQ" />
-                    <col name="Sales%ChgTTM" />
-                    <col name="SectorDescr" />
-                    <col name="PriceCurrCode" />
-                    <col name="Pr2BookPQ" />
-                    <pos rows="750" row="1" />
-                </form>
-                </Calculate_Request_1>
-            </s:Body>
-            </s:Envelope>
-        '''
+        payload = SoapRequests.make_screener_all_request()
         resp = requests.get(
             "https://apitrkd.trkd-hs.com/apitrkd/api/Screener/Screener.svc",
             params=dict(
@@ -146,7 +106,7 @@ class SGX:
         ]
         return data
 
-    def get_basic_info(self, stock_code):
+    def get_basic_info_by_stock(self, stock_code):
         """
         Fetches basic information about a stock, given its stock code
 
@@ -173,7 +133,7 @@ class SGX:
         basic_info = data[0]
         return basic_info
 
-    def get_historic_data(self, stock_code, period=HistoricPeriods.ONE_YEAR):
+    def get_historical_data_by_stock(self, stock_code, period=HistoricPeriods.ONE_YEAR):
         """
         fetches historical prices of a stock over a given period
 
@@ -215,10 +175,29 @@ class SGX:
         )
         return data['data'][type]
 
+    def get_stock_announcements(self, stock_code):
+        data = self.do_json_request(
+            'https://api.sgx.com/announcements/v1.0/securitycode',
+            params=dict(
+                periodstart="20180720_161034",
+                cat="ANNC",
+                sub="ANNC17",
+                value=stock_code,
+                pagestart=0,
+                pagesize=250
+            )
+        )['data']
+        return data
+
+    def get_general_fundamentals_by_stock(self, RIC):
+        payload = SoapRequests.make_general_fundamentals_request(RIC)
+        pass
+
 
 if __name__ == "__main__":
     sgx = SGX()
     # print(sgx.get_all_stocks_names())
-    # print(sgx.get_basic_info('Z74'))
-    # print(sgx.get_historic_data('Z74', period=HistoricPeriods.ONE_YEAR))
+    # print(sgx.get_basic_info_by_stock('Z74'))
+    # print(sgx.get_historical_data_by_stock('Z74', period=HistoricPeriods.ONE_YEAR))
     # print(sgx.get_all_stocks_attributes())
+    # print(sgx.get_stock_announcements_by_stock('Z74'))
