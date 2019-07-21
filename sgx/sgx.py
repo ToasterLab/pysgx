@@ -9,6 +9,7 @@ from soap_requests import SoapRequests
 
 class SGX:
     def __init__(self):
+        self.token = 'nmosUxEP1iCb1HdhRXhQKj9wdTFRdLLD2TP6sKaBkZccGjSvkX9+BRLXbD47kHzl'
         pass
 
     def do_json_request(self, url, params={}):
@@ -18,6 +19,17 @@ class SGX:
         data = resp.json()
         if 'meta' not in data or 'code' not in data['meta'] or data['meta']['code'] != "200":
             raise Exception(f"Returned code {data['meta']['code']}")
+        return data
+
+    def do_soap_request(self, url, payload, params={}):
+        resp = requests.get(url, params=params, data=payload, headers={
+            'Content-Type': 'application/soap+xml'
+        })
+        if resp.status_code != requests.codes.ok:
+            raise Exception(f"Http {resp.status_code}: {resp.text}")
+        data = xmltodict.parse(
+            resp.content
+        )
         return data
 
     def get_stocks(self, start=0, size=250):
@@ -59,17 +71,13 @@ class SGX:
 
     def get_all_stocks_attributes(self):
         payload = SoapRequests.make_screener_all_request()
-        resp = requests.get(
+        resp = self.do_soap_request(
             "https://apitrkd.trkd-hs.com/apitrkd/api/Screener/Screener.svc",
+            payload,
             params=dict(
                 id='public',
-                # token might change 🤔
-                token='1Le8/lo/ni+HhRttcXs/h+iLkXECxL4HqLUVuGNK2YEvaQjHh8E6+6psij/jP3Nz'
+                token=self.token
             ),
-            data=payload,
-            headers={
-                'Content-Type': 'application/soap+xml'
-            }
         )
 
         attributes = [
@@ -96,9 +104,7 @@ class SGX:
             "price_over_book"
         ]
         raw_data = [
-            result['v'] for result in xmltodict.parse(
-                resp.content
-            )['s:Envelope']['s:Body']['Calculate_Response_1']['rs']['r']]
+            result['v'] for result in resp['s:Envelope']['s:Body']['Calculate_Response_1']['rs']['r']]
         data = [
             {
                 attributes[i]: (v if isinstance(v, str) else None) for i, v in enumerate(stock)
@@ -191,7 +197,25 @@ class SGX:
 
     def get_general_fundamentals_by_stock(self, RIC):
         payload = SoapRequests.make_general_fundamentals_request(RIC)
-        pass
+        resp = self.do_soap_request(
+            "https://apitrkd.trkd-hs.com/apitrkd/api/Fundamentals/Fundamentals.svc",
+            payload,
+            dict(
+                id='public',
+                token=self.token
+            )
+        )
+        data = resp['s:Envelope']['s:Body']['GetGeneralInformation_Response_1']['GeneralInformation']
+        return dict(
+            company_name=data['CompanyName']['#text'],
+            industry_classification=[item for sublist in [
+                (
+                    [v['@Description'] for v in d['Detail']] if isinstance(d['Detail'], list)
+                    else [d['Detail']['@Description']]
+                ) for d in data['IndustryClassification']['Taxonomy']
+            ] for item in sublist],
+            employees=data['CompanyGeneralInfo']['Employees']['#text']
+        )
 
 
 if __name__ == "__main__":
@@ -201,3 +225,4 @@ if __name__ == "__main__":
     # print(sgx.get_historical_data_by_stock('Z74', period=HistoricPeriods.ONE_YEAR))
     # print(sgx.get_all_stocks_attributes())
     # print(sgx.get_stock_announcements_by_stock('Z74'))
+    print(json.dumps(sgx.get_general_fundamentals_by_stock('STEL.SI'), indent=2))

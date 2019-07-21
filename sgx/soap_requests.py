@@ -51,7 +51,7 @@ class SoapRequests:
           <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
             <s:Header>
               <a:To>http://api.trkd.thomsonreuters.com/api/Fundamentals/Fundamentals.svc</a:To>
-              <a:MessageID>gzD6EZB93lF77ixZlPsa9mN6TWc5zZU4</a:MessageID>
+              <a:MessageID>TH9uDQHSPTIkOAArSJUYolMaaODMlBRx</a:MessageID>
               <a:Action>http://www.reuters.com/ns/2009/01/26/webservices/rkd/Fundamentals_1/GetGeneralInformation_1</a:Action>
               <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
                 <ApplicationID></ApplicationID>
