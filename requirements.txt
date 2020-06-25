@@ -1,4 +1,4 @@
 requests==2.21.0
-autopep8==2.5.0
+autopep8==1.4.4
 xmltodict==0.12.0
 flask==1.1.1
