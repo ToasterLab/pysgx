@@ -1,4 +1,4 @@
-from functools import reduce
+from constants import StatementTypes
 
 
 class Soap:
@@ -147,6 +147,8 @@ class Soap:
     issue = data['Issues']['Issue']
     general_info = data['CoGeneralInfo']
     ratios = data['Ratios']
+    forecast_data = data['ForecastData']
+    recommendation = data['ConsRecommendationTrend']
     return dict(
         issues=dict(
             name=issue['@Desc'],
@@ -186,29 +188,146 @@ class Soap:
             reportingCurrency=ratios['@ReportingCurrency'],
             exchangeRate=ratios['@ExchangeRate'],
             date=ratios['@LatestAvailableDate'],
-            priceVol=dict(
-
-            ),
-            perShare=dict(
-
-            ),
-            valuation=dict(
-
-            ),
-            financialStrength=dict(
-
-            ),
-            incomeStatement=dict(
-
-            ),
-            margins=dict(
-
-            ),
-            managementEffectiveness=dict(
-
-            ),
-            growth=dict(
-
-            )
+            **{
+              item['@ID']: {
+                ratio['@FieldName']: ratio['#text'] for ratio in item['Ratio']
+             } for item in ratios['Group']
+            }
+        ),
+        forecastData=dict(
+          consensusType=forecast_data['@ConsensusType'],
+          currentFiscalYear=forecast_data['@CurFiscalYear'],
+          currentFiscalYearEndMonth=forecast_data['@CurFiscalYearEndMonth'],
+          **{
+            item['@FieldName']: item['Value']['#text'] for item in forecast_data['Ratio']
+          }
+        ),
+        recommendation=dict(
+          opinions=dict(
+            **{
+              opinion['@Desc']: dict(
+                **{value['@PeriodType']: value['#text'] for value in opinion['Value']}
+              ) for opinion in recommendation['STOpinion']['Opinion']
+            }
+          ),
+          meanRating=dict(
+            # CURR = current
+            # 1WA = 1 week ago
+            # 1MA = 1 month ago
+            **{
+              value['@PeriodType']: value['#text'] for value in recommendation['MeanRating']['Value']
+            }
+          ),
+          noOfAnalysts=dict(
+            **{
+              value['@PeriodType']: value['#text'] for value in recommendation['NoOfAnalysts']['Value']
+            }
+          )
         )
     )
+    
+  @staticmethod
+  def request_financial_statements(ric):
+    return f"""
+    <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
+      <s:Header>
+        <a:To>http://api.trkd.thomsonreuters.com/api/Fundamentals/Fundamentals.svc</a:To>
+        <a:MessageID>X2B9vx2RpG7m2o5HhPgMgklhWAhisX36</a:MessageID>
+        <a:Action>http://www.reuters.com/ns/2009/01/26/webservices/rkd/Fundamentals_1/GetFinancialStatementsReports_1</a:Action>
+        <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
+          <ApplicationID></ApplicationID>
+          <Token></Token>
+        </Authorization>
+      </s:Header>
+      <s:Body>
+        <GetFinancialStatementsReports_Request_1 companyId="{ric}" companyIdType="RIC" countryCode="SG"
+          xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://www.reuters.com/ns/2009/01/26/webservices/rkd/Fundamentals_1" />
+      </s:Body>
+    </s:Envelope>
+    """
+
+  @staticmethod
+  def parse_financial_statements(resp):
+    data = resp['s:Envelope']['s:Body']['GetFinancialStatementsReports_Response_1']['FundamentalReports']['ReportFinancialStatements']
+    lineItemTypes = {
+      item['@coaItem']: item['#text'] for item in data['FinancialStatements']['COAMap']['mapItem']
+    }
+
+    def parse_statement(statement, type):
+      return dict(
+            **{
+              lineItem['@coaCode']: dict(
+                name=lineItemTypes[lineItem['@coaCode']],
+                value=lineItem['#text']
+              ) for lineItem in list(filter(
+                lambda x: x['@Type'] == type,
+                statement
+              ))[0]['lineItem']
+            }
+          )
+    
+    return dict(
+      **{ id['@Type']: id['#text'] for id in data['CoIDs']['CoID'] },
+      lineItemTypes=lineItemTypes,
+      statements=[
+        dict(
+          type=period['@Type'],
+          endDate=period['@EndDate'],
+          fiscalYear=period['@FiscalYear'],
+          income=parse_statement(period['Statement'], StatementTypes.INCOME),
+          balance=parse_statement(period['Statement'], StatementTypes.BALANCE_SHEET),
+          cash=parse_statement(period['Statement'], StatementTypes.CASH_FLOWS),
+        ) for period in data['FinancialStatements']['AnnualPeriods']['FiscalPeriod']
+      ]
+    )
+
+  @staticmethod
+  def request_snapshot_report(ric):
+    return f"""
+      <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
+        <s:Header>
+          <a:To>http://api.trkd.thomsonreuters.com/api/Fundamentals/Fundamentals.svc</a:To>
+          <a:MessageID>HajkdytdCyY0qowXsWxuUB8YTi7N0na8</a:MessageID>
+          <a:Action>http://www.reuters.com/ns/2009/01/26/webservices/rkd/Fundamentals_1/GetSnapshotReports_1</a:Action>
+          <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
+            <ApplicationID></ApplicationID>
+            <Token></Token>
+          </Authorization>
+        </s:Header>
+        <s:Body>
+          <GetSnapshotReports_Request_1 companyId="{ric}" companyIdType="RIC" countryCode="SG"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xmlns="http://www.reuters.com/ns/2009/01/26/webservices/rkd/Fundamentals_1"/>
+        </s:Body>
+      </s:Envelope>
+    """
+  
+  @staticmethod
+  def parse_snapshot_report(resp):
+    data = resp['s:Envelope']['s:Body']['GetSnapshotReports_Response_1']['FundamentalReports']['ReportSnapshot']
+    return dict(
+      **{ text['@Type']: text['#text'] for text in data['TextInfo']['Text']},
+      contactInfo=dict(
+        lastUpdated=data['contactInfo']['@lastUpdated'],
+        streetAddress=[add.get('#text') for add in data['contactInfo']['streetAddress']],
+        city=data['contactInfo'].get('city'),
+        state=data['contactInfo'].get('state'),
+        postalCode=data['contactInfo'].get('postalCode'),
+        country=dict(
+          code=data['contactInfo']['country']['@code'],
+          name=data['contactInfo']['country']['#text']
+        )
+      ),
+      industries=[
+        industry['#text'] for industry in data['peerInfo']['IndustryInfo']['Industry']
+      ],
+      forecast=dict(
+        consensusType=data['ForecastData']['@ConsensusType'],
+        fiscalYear=data['ForecastData']['@CurFiscalYear'],
+        **{ratio['@FieldName']: ratio['Value']['#text'] for ratio in data['ForecastData']['Ratio']}
+      ),
+      website=data['webLinks']['webSite']['#text'],
+      email=data['webLinks']['eMail']['#text']
+    )
+

@@ -1,7 +1,9 @@
+# pylint: disable=no-member
 #!/usr/bin/env python
 import json
 import requests
 import xmltodict
+import datetime
 
 from constants import HistoricPeriods
 from soap import Soap
@@ -28,7 +30,7 @@ class SGX:
     data = self.do_json_request(url, params)
     if 'meta' not in data or 'code' not in data['meta'] or data['meta']['code'] != "200":
       raise Exception(f"Returned code {data['meta']['code']}")
-    return data
+    return data['data']
 
   def do_soap_request(self, url, payload, params={}):
     resp = requests.get(url, params=params, data=payload, headers={
@@ -66,7 +68,7 @@ class SGX:
     )
     return data
 
-  def get_all_stocks_names(self):
+  def get_all_stocks(self):
     """
     Fetches a list of all mainboard stocks
 
@@ -107,7 +109,7 @@ class SGX:
     )
     return Soap.parse_screener_all(resp)
 
-  def get_basic_info_by_stock(self, stock_code):
+  def get_basic_info(self, stock_code):
     """
     Fetches basic information about a stock, given its stock code
 
@@ -128,13 +130,13 @@ class SGX:
     data = self.do_sgx_json_request(
         'https://api.sgx.com/marketmetadata/v2',
         params=params
-    )['data']
+    )
     if len(data) != 1:
       raise Exception("Invalid basic info")
     basic_info = data[0]
     return basic_info
 
-  def get_historical_data_by_stock(self, stock_code, period=HistoricPeriods.ONE_YEAR):
+  def get_historical_data(self, stock_code, period=HistoricPeriods.ONE_YEAR):
     """
     fetches historical prices of a stock over a given period
 
@@ -174,7 +176,7 @@ class SGX:
     data = self.do_sgx_json_request(
         f"https://api.sgx.com/securities/v1.1/charts/{type}/stocks/code/{stock_code}/{period}"
     )
-    return data['data'][type]
+    return data[type]
 
   def get_stock_announcements(self, stock_code):
     data = self.do_sgx_json_request(
@@ -187,7 +189,7 @@ class SGX:
             pagestart=0,
             pagesize=250
         )
-    )['data']
+    )
     return data
 
   def get_general_information(self, ric: str):
@@ -221,7 +223,57 @@ class SGX:
           params=dict(
               ibmcode=ibm_code
           )
-      )['data'][0]
+      )[0]
       return data
     except:
       raise Exception('Invalid ibmcode')
+  
+  def get_corporate_actions(self, ibmcode):
+    """
+      including dividend info
+    """
+    try:
+      data = self.do_sgx_json_request(
+        'https://api.sgx.com/corporateactions/v1.0',
+        params=dict(
+          pagesize=10,
+          pagestart=0,
+          ibmcode=ibmcode,
+          cat='dividend',
+          params=','.join(['id', 'anncType', 'datePaid', 'exDate', 'name', 'particulars', 'recDate'])
+        )
+      )
+      # dates are in milliseconds since unix epoch
+      return [
+        dict(
+          url='https://links.sgx.com/1.0.0/corporate-actions/'+str(entry['id']),
+          **entry
+         ) for entry in data
+      ]
+    except Exception as e:
+      print(e)
+      raise Exception('Invalid ibmcode')
+  
+  def get_financial_statements(self, ric):
+    payload = Soap.request_financial_statements(ric)
+    resp = self.do_soap_request(
+        "https://apitrkd.trkd-hs.com/apitrkd/api/Fundamentals/Fundamentals.svc",
+        payload,
+        dict(
+            id='public',
+            token=self.token
+        )
+    )
+    return Soap.parse_financial_statements(resp)
+
+  def get_snapshot_report(self, ric):
+    payload = Soap.request_snapshot_report(ric)
+    resp = self.do_soap_request(
+        "https://apitrkd.trkd-hs.com/apitrkd/api/Fundamentals/Fundamentals.svc",
+        payload,
+        dict(
+            id='public',
+            token=self.token
+        )
+    )
+    return Soap.parse_snapshot_report(resp)

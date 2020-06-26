@@ -5,6 +5,7 @@ sgx = SGX()
 
 stock_code = 'Z74'
 ibm_code = '1T75'
+ric = 'STEL.SI'
 
 
 def pretty_print(data):
@@ -17,7 +18,7 @@ def pretty_print(data):
 
 
 # pretty_print(sgx.get_corporate_info(ibm_code))
-pretty_print(sgx.get_ratios('STEL.SI'))
+pretty_print(sgx.get_snapshot_report(ric))
 
 # print(sgx.get_all_stocks_names())
 # print(sgx.get_basic_info_by_stock('Z74'))
