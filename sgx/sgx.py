@@ -277,3 +277,18 @@ class SGX:
         )
     )
     return Soap.parse_snapshot_report(resp)
+
+  def stock_search(self, stock_code):
+    payload = Soap.request_stock_search(stock_code)
+    resp = self.do_soap_request(
+      "https://apitrkd.trkd-hs.com/apitrkd/api/Search2/Search2.svc",
+      payload,
+      dict(
+          id='public',
+          token=self.token
+      )
+    )
+    return Soap.parse_stock_search(resp)
+
+  def get_ric_by_stock_code(self, stock_code):
+    return self.stock_search(stock_code)[0]['PrimaryRIC']

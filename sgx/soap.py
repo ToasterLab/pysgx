@@ -331,3 +331,37 @@ class Soap:
       email=data['webLinks']['eMail']['#text']
     )
 
+  @staticmethod
+  def request_stock_search(stock_code):
+    return f"""
+      <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing">
+        <s:Header>
+          <a:To>http://api.trkd.thomsonreuters.com/api/Search2/Search2.svc</a:To>
+          <a:MessageID>ahAnAvwGNKFXP0vrMzkhWWPmJp9f05vl</a:MessageID>
+          <a:Action>http://www.reuters.com/ns/2017/08/18/webservices/rkd/Search2_1/Search_1</a:Action>
+          <Authorization xmlns="http://www.reuters.com/ns/2006/05/01/webservices/rkd/Common_1">
+            <ApplicationID></ApplicationID>
+            <Token></Token>
+          </Authorization>
+        </s:Header>
+        <s:Body>
+          <Search_Request_1 xmlns="http://www.reuters.com/ns/2017/08/18/webservices/rkd/Search2_1"
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            UnentitledAccess="true">
+            <Collection>EquityQuotes</Collection>
+            <Filter>ExchangeCode eq 'SES' and TickerSymbol eq '{stock_code}'</Filter>
+            <ResponseProperties>BusinessEntity,PrimaryRIC,TickerSymbol</ResponseProperties>
+          </Search_Request_1>
+        </s:Body>
+      </s:Envelope>
+    """
+  
+  @staticmethod
+  def parse_stock_search(resp):
+    data = resp['s:Envelope']['s:Body']['Search_Response_1']['Results']['Result']
+    return [
+      {prop['@name']: prop['#text'] for prop in item['Property']}
+      for item in data
+    ]
+
+
