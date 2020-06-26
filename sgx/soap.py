@@ -359,9 +359,12 @@ class Soap:
   @staticmethod
   def parse_stock_search(resp):
     data = resp['s:Envelope']['s:Body']['Search_Response_1']['Results']['Result']
-    return [
-      {prop['@name']: prop['#text'] for prop in item['Property']}
-      for item in data
-    ]
+    if len(data) > 1:
+      return [
+        {prop['@name']: prop['#text'] for prop in item['Property']}
+        for item in data
+      ]
+    else:
+      return [{prop['@name']: prop['#text'] for prop in data['Property']}]
 
 
