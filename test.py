@@ -16,9 +16,9 @@ def pretty_print(data):
       )
   )
 
-
+pretty_print(api.get_all_stocks())
 # pretty_print(sgx.get_corporate_info(ibm_code))
-pretty_print(api.get_ric_by_stock_code('Z74'))
+# pretty_print(api.get_ric_by_stock_code('Z74'))
 
 # print(sgx.get_all_stocks_names())
 # print(sgx.get_basic_info_by_stock('Z74'))

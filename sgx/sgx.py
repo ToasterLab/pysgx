@@ -62,7 +62,7 @@ class SGX:
 
   def get_stocks(self, start=0, size=250):
     params = dict(start=start, size=size)
-    data = self.do_sgx_json_request(
+    data = self.do_json_request(
         'https://api.sgx.com/securities/v1.1/gtis',
         params=params
     )
