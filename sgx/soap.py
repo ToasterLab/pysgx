@@ -1,4 +1,4 @@
-from constants import StatementTypes
+from sgx.constants import StatementTypes
 
 
 class Soap:

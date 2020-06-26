@@ -5,8 +5,8 @@ import requests
 import xmltodict
 import datetime
 
-from constants import HistoricPeriods
-from soap import Soap
+from sgx.constants import HistoricPeriods
+from sgx.soap import Soap
 
 
 class SGX:
