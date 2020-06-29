@@ -1,4 +1,5 @@
 import pathlib
+
 from setuptools import setup
 
 # The directory containing this file
@@ -10,7 +11,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="sgx",
-    version="1.2.0",
+    version="1.3.0",
     description="Wrapper for unofficial SGX API",
     long_description=README,
     long_description_content_type="text/markdown",

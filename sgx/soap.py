@@ -161,7 +161,8 @@ class Soap:
             mostRecentSplit=dict(
                 date=issue['MostRecentSplit']['@Date'],
                 value=issue['MostRecentSplit']['#text']
-            )
+            ) if issue.get('MostRecentSplit') is not None else None
+
         ),
         generalInfo=dict(
             companyStatus=general_info['CoStatus']['#text'],
@@ -189,43 +190,43 @@ class Soap:
             exchangeRate=ratios['@ExchangeRate'],
             date=ratios['@LatestAvailableDate'],
             **{
-              item['@ID']: {
-                ratio['@FieldName']: ratio['#text'] for ratio in item['Ratio']
-             } for item in ratios['Group']
+                item['@ID']: {
+                    ratio['@FieldName']: ratio['#text'] for ratio in item['Ratio']
+                } for item in ratios['Group']
             }
         ),
         forecastData=dict(
-          consensusType=forecast_data['@ConsensusType'],
-          currentFiscalYear=forecast_data['@CurFiscalYear'],
-          currentFiscalYearEndMonth=forecast_data['@CurFiscalYearEndMonth'],
-          **{
-            item['@FieldName']: item['Value']['#text'] for item in forecast_data['Ratio']
-          }
+            consensusType=forecast_data['@ConsensusType'],
+            currentFiscalYear=forecast_data['@CurFiscalYear'],
+            currentFiscalYearEndMonth=forecast_data['@CurFiscalYearEndMonth'],
+            **{
+                item['@FieldName']: item['Value']['#text'] for item in forecast_data['Ratio']
+            }
         ),
         recommendation=dict(
-          opinions=dict(
-            **{
-              opinion['@Desc']: dict(
-                **{value['@PeriodType']: value['#text'] for value in opinion['Value']}
-              ) for opinion in recommendation['STOpinion']['Opinion']
-            }
-          ),
-          meanRating=dict(
-            # CURR = current
-            # 1WA = 1 week ago
-            # 1MA = 1 month ago
-            **{
-              value['@PeriodType']: value['#text'] for value in recommendation['MeanRating']['Value']
-            }
-          ),
-          noOfAnalysts=dict(
-            **{
-              value['@PeriodType']: value['#text'] for value in recommendation['NoOfAnalysts']['Value']
-            }
-          )
+            opinions=dict(
+                **{
+                    opinion['@Desc']: dict(
+                        **{value['@PeriodType']: value['#text'] for value in opinion['Value']}
+                    ) for opinion in recommendation['STOpinion']['Opinion']
+                }
+            ) if recommendation.get('STOpinion') is not None else None,
+            meanRating=dict(
+                # CURR = current
+                # 1WA = 1 week ago
+                # 1MA = 1 month ago
+                **{
+                    value['@PeriodType']: value['#text'] for value in recommendation['MeanRating']['Value']
+                }
+            ) if recommendation.get('MeanRating') is not None else None,
+            noOfAnalysts=dict(
+                **{
+                    value['@PeriodType']: value['#text'] for value in recommendation['NoOfAnalysts']['Value']
+                }
+            ) if recommendation.get('NoOfAnalysts') is not None else None
         )
     )
-    
+
   @staticmethod
   def request_financial_statements(ric):
     return f"""
@@ -251,35 +252,38 @@ class Soap:
   def parse_financial_statements(resp):
     data = resp['s:Envelope']['s:Body']['GetFinancialStatementsReports_Response_1']['FundamentalReports']['ReportFinancialStatements']
     lineItemTypes = {
-      item['@coaItem']: item['#text'] for item in data['FinancialStatements']['COAMap']['mapItem']
+        item['@coaItem']: item['#text'] for item in data['FinancialStatements']['COAMap']['mapItem']
     }
 
     def parse_statement(statement, type):
       return dict(
-            **{
+          **{
               lineItem['@coaCode']: dict(
-                name=lineItemTypes[lineItem['@coaCode']],
-                value=lineItem['#text']
+                  name=lineItemTypes[lineItem['@coaCode']],
+                  value=lineItem['#text']
               ) for lineItem in list(filter(
-                lambda x: x['@Type'] == type,
-                statement
+                  lambda x: x['@Type'] == type,
+                  statement
               ))[0]['lineItem']
-            }
-          )
-    
+          }
+      )
+
     return dict(
-      **{ id['@Type']: id['#text'] for id in data['CoIDs']['CoID'] },
-      lineItemTypes=lineItemTypes,
-      statements=[
-        dict(
-          type=period['@Type'],
-          endDate=period['@EndDate'],
-          fiscalYear=period['@FiscalYear'],
-          income=parse_statement(period['Statement'], StatementTypes.INCOME),
-          balance=parse_statement(period['Statement'], StatementTypes.BALANCE_SHEET),
-          cash=parse_statement(period['Statement'], StatementTypes.CASH_FLOWS),
-        ) for period in data['FinancialStatements']['AnnualPeriods']['FiscalPeriod']
-      ]
+        **{id['@Type']: id['#text'] for id in data['CoIDs']['CoID']},
+        lineItemTypes=lineItemTypes,
+        statements=[
+            dict(
+                type=period['@Type'],
+                endDate=period['@EndDate'],
+                fiscalYear=period['@FiscalYear'],
+                income=parse_statement(
+                    period['Statement'], StatementTypes.INCOME),
+                balance=parse_statement(
+                    period['Statement'], StatementTypes.BALANCE_SHEET),
+                cash=parse_statement(
+                    period['Statement'], StatementTypes.CASH_FLOWS),
+            ) for period in data['FinancialStatements']['AnnualPeriods']['FiscalPeriod']
+        ]
     )
 
   @staticmethod
@@ -302,33 +306,34 @@ class Soap:
         </s:Body>
       </s:Envelope>
     """
-  
+
   @staticmethod
   def parse_snapshot_report(resp):
     data = resp['s:Envelope']['s:Body']['GetSnapshotReports_Response_1']['FundamentalReports']['ReportSnapshot']
     return dict(
-      **{ text['@Type']: text['#text'] for text in data['TextInfo']['Text']},
-      contactInfo=dict(
-        lastUpdated=data['contactInfo']['@lastUpdated'],
-        streetAddress=[add.get('#text') for add in data['contactInfo']['streetAddress']],
-        city=data['contactInfo'].get('city'),
-        state=data['contactInfo'].get('state'),
-        postalCode=data['contactInfo'].get('postalCode'),
-        country=dict(
-          code=data['contactInfo']['country']['@code'],
-          name=data['contactInfo']['country']['#text']
-        )
-      ),
-      industries=[
-        industry['#text'] for industry in data['peerInfo']['IndustryInfo']['Industry']
-      ],
-      forecast=dict(
-        consensusType=data['ForecastData']['@ConsensusType'],
-        fiscalYear=data['ForecastData']['@CurFiscalYear'],
-        **{ratio['@FieldName']: ratio['Value']['#text'] for ratio in data['ForecastData']['Ratio']}
-      ),
-      website=data['webLinks']['webSite']['#text'],
-      email=data['webLinks']['eMail']['#text']
+        **{text['@Type']: text['#text'] for text in data['TextInfo']['Text']},
+        contactInfo=dict(
+            lastUpdated=data['contactInfo']['@lastUpdated'],
+            streetAddress=[add.get('#text')
+                           for add in data['contactInfo']['streetAddress']],
+            city=data['contactInfo'].get('city'),
+            state=data['contactInfo'].get('state'),
+            postalCode=data['contactInfo'].get('postalCode'),
+            country=dict(
+                code=data['contactInfo']['country']['@code'],
+                name=data['contactInfo']['country']['#text']
+            )
+        ),
+        industries=[
+            industry['#text'] for industry in data['peerInfo']['IndustryInfo']['Industry']
+        ],
+        forecast=dict(
+            consensusType=data['ForecastData']['@ConsensusType'],
+            fiscalYear=data['ForecastData']['@CurFiscalYear'],
+            **{ratio['@FieldName']: ratio['Value']['#text'] for ratio in data['ForecastData']['Ratio']}
+        ),
+        website=data['webLinks']['webSite']['#text'],
+        email=data['webLinks']['eMail']['#text']
     )
 
   @staticmethod
@@ -355,16 +360,14 @@ class Soap:
         </s:Body>
       </s:Envelope>
     """
-  
+
   @staticmethod
   def parse_stock_search(resp):
     data = resp['s:Envelope']['s:Body']['Search_Response_1']['Results']['Result']
     if len(data) > 1:
       return [
-        {prop['@name']: prop['#text'] for prop in item['Property']}
-        for item in data
+          {prop['@name']: prop['#text'] for prop in item['Property']}
+          for item in data
       ]
     else:
       return [{prop['@name']: prop['#text'] for prop in data['Property']}]
-
-

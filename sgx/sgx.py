@@ -1,9 +1,10 @@
 # pylint: disable=no-member
 #!/usr/bin/env python
+import datetime
 import json
+
 import requests
 import xmltodict
-import datetime
 
 from sgx.constants import HistoricPeriods
 from sgx.soap import Soap
@@ -37,7 +38,7 @@ class SGX:
         'Content-Type': 'application/soap+xml'
     })
     if resp.status_code != requests.codes.ok:
-      raise Exception(f"Http {resp.status_code}: {resp.text}")
+      raise Exception(f"Http {resp.status_code}: {resp.text} {resp.content}")
     data = xmltodict.parse(
         resp.content
     )
@@ -227,33 +228,35 @@ class SGX:
       return data
     except:
       raise Exception('Invalid ibmcode')
-  
+
   def get_corporate_actions(self, ibmcode):
     """
       including dividend info
     """
     try:
       data = self.do_sgx_json_request(
-        'https://api.sgx.com/corporateactions/v1.0',
-        params=dict(
-          pagesize=10,
-          pagestart=0,
-          ibmcode=ibmcode,
-          cat='dividend',
-          params=','.join(['id', 'anncType', 'datePaid', 'exDate', 'name', 'particulars', 'recDate'])
-        )
+          'https://api.sgx.com/corporateactions/v1.0',
+          params=dict(
+              pagesize=10,
+              pagestart=0,
+              ibmcode=ibmcode,
+              cat='dividend',
+              params=','.join(['id', 'anncType', 'datePaid',
+                               'exDate', 'name', 'particulars', 'recDate'])
+          )
       )
       # dates are in milliseconds since unix epoch
       return [
-        dict(
-          url='https://links.sgx.com/1.0.0/corporate-actions/'+str(entry['id']),
-          **entry
-         ) for entry in data
+          dict(
+              url='https://links.sgx.com/1.0.0/corporate-actions/' +
+              str(entry['id']),
+              **entry
+          ) for entry in data
       ]
     except Exception as e:
       print(e)
       raise Exception('Invalid ibmcode')
-  
+
   def get_financial_statements(self, ric):
     payload = Soap.request_financial_statements(ric)
     resp = self.do_soap_request(
@@ -281,12 +284,12 @@ class SGX:
   def stock_search(self, stock_code):
     payload = Soap.request_stock_search(stock_code)
     resp = self.do_soap_request(
-      "https://apitrkd.trkd-hs.com/apitrkd/api/Search2/Search2.svc",
-      payload,
-      dict(
-          id='public',
-          token=self.token
-      )
+        "https://apitrkd.trkd-hs.com/apitrkd/api/Search2/Search2.svc",
+        payload,
+        dict(
+            id='public',
+            token=self.token
+        )
     )
     return Soap.parse_stock_search(resp)
 
