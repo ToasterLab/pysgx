@@ -269,15 +269,18 @@ class Soap:
     }
 
     def parse_statement(statement, type):
+      matches = list(filter(
+          lambda x: x['@Type'] == type,
+          statement
+      ))
+      if len(matches) == 0:
+        return None
       return dict(
           **{
               lineItem['@coaCode']: dict(
                   name=lineItemTypes[lineItem['@coaCode']],
                   value=lineItem['#text']
-              ) for lineItem in list(filter(
-                  lambda x: x['@Type'] == type,
-                  statement
-              ))[0]['lineItem']
+              ) for lineItem in matches[0]['lineItem']
           }
       )
 
