@@ -72,23 +72,6 @@ class SGX:
   def get_all_stocks(self):
     """
     Fetches a list of all mainboard stocks
-
-    Returns:
-        [
-            {
-                'issue': 'GTI2013',
-                'year': 2013,
-                'companyName':
-                'SYNEAR FOOD HOLDINGS LIMITED',
-                'rank': 396,
-                'adjustment': -2,
-                'baseScore': 34.0,
-                'totalScore': 32.0,
-                'stockCode': 'Z75',
-                'isinCode': 'BMG8648Q1069'
-            },
-            ...
-        ]
     """
     initial_data = self.get_stocks()
     total_pages = initial_data['meta']['totalPages']
@@ -146,32 +129,6 @@ class SGX:
 
     Keyword Arguments:
         period {[str]} -- HistoricPeriods defined in constants.py (default: {HistoricPeriods.ONE_YEAR})
-
-    Returns:
-        [{
-            'change_vs_pc_percentage': None,
-            'cur': 'SGD',
-            'ptd': '20190718',
-            'pv': 3.52,
-            'h': 3.54,
-            'lt': 3.54,
-            'trading_time': '20190719_091600',
-            'l': 3.52,
-            'type': 'stocks',
-            'dp': None,
-            'n': 'SingTel',
-            'o': 3.54,
-            'change_vs_pc': None,
-            'du': None,
-            'nc': 'Z74',
-            'v': 47160653.0,
-            'vl': 13353.0,
-            'dpc': None,
-            'lf': None,
-            'ig': None,
-            'ed': None
-            },
-        ...]
     """
     type = 'intraday' if period == HistoricPeriods.ONE_DAY else 'historic'
     data = self.do_sgx_json_request(
