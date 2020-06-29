@@ -23,7 +23,7 @@ def pretty_print(data):
 # pretty_print(api.get_ric_by_stock_code('Z74'))
 
 
-pretty_print(api.get_ratios('KIML.SI'))
+pretty_print(api.get_ratios('CWXG.SI'))
 
 # print(sgx.get_all_stocks_names())
 # print(sgx.get_basic_info_by_stock('Z74'))

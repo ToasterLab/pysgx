@@ -150,7 +150,21 @@ class Soap:
     forecast_data = data['ForecastData']
     recommendation = data['ConsRecommendationTrend']
     return dict(
-        issues=dict(
+        issues=(
+            [dict(
+                name=i['@Desc'],
+                **{item['@Type']: item['#text'] for item in i['IssueID']},
+                exchange=dict(
+                    code=i['Exchange']['@Code'],
+                    country=i['Exchange']['@Country'],
+                    name=i['Exchange']['#text']
+                ),
+                mostRecentSplit=dict(
+                    date=i['MostRecentSplit']['@Date'],
+                    value=i['MostRecentSplit']['#text']
+                ) if i.get('MostRecentSplit') is not None else None
+            ) for i in issue]
+        ) if type(issue) is list else dict(
             name=issue['@Desc'],
             **{item['@Type']: item['#text'] for item in issue['IssueID']},
             exchange=dict(
@@ -162,7 +176,6 @@ class Soap:
                 date=issue['MostRecentSplit']['@Date'],
                 value=issue['MostRecentSplit']['#text']
             ) if issue.get('MostRecentSplit') is not None else None
-
         ),
         generalInfo=dict(
             companyStatus=general_info['CoStatus']['#text'],
