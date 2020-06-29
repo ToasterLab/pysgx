@@ -268,21 +268,31 @@ class Soap:
         item['@coaItem']: item['#text'] for item in data['FinancialStatements']['COAMap']['mapItem']
     }
 
-    def parse_statement(statement, type):
-      matches = list(filter(
-          lambda x: x['@Type'] == type,
-          statement
-      ))
-      if len(matches) == 0:
-        return None
-      return dict(
-          **{
-              lineItem['@coaCode']: dict(
-                  name=lineItemTypes[lineItem['@coaCode']],
-                  value=lineItem['#text']
-              ) for lineItem in matches[0]['lineItem']
-          }
-      )
+    def parse_statement(statement, statementType):
+      if type(statement) is list:
+        matches = list(filter(
+            lambda x: x['@Type'] == statementType,
+            statement
+        ))
+        if len(matches) == 0:
+          return None
+        return dict(
+            **{
+                lineItem['@coaCode']: dict(
+                    name=lineItemTypes[lineItem['@coaCode']],
+                    value=lineItem['#text']
+                ) for lineItem in matches[0]['lineItem']
+            }
+        )
+      else:
+        return dict(
+            **{
+                lineItem['@coaCode']: dict(
+                    name=lineItemTypes[lineItem['@coaCode']],
+                    value=lineItem['#text']
+                ) for lineItem in statement['lineItem']
+            }
+        )
 
     return dict(
         **{id['@Type']: id['#text'] for id in data['CoIDs']['CoID']},
@@ -299,6 +309,19 @@ class Soap:
                 cash=parse_statement(
                     period['Statement'], StatementTypes.CASH_FLOWS),
             ) for period in data['FinancialStatements']['AnnualPeriods']['FiscalPeriod']
+        ],
+        interimStatements=[
+            dict(
+                type=period['@Type'],
+                endDate=period['@EndDate'],
+                fiscalYear=period['@FiscalYear'],
+                income=parse_statement(
+                    period['Statement'], StatementTypes.INCOME),
+                balance=parse_statement(
+                    period['Statement'], StatementTypes.BALANCE_SHEET),
+                cash=parse_statement(
+                    period['Statement'], StatementTypes.CASH_FLOWS),
+            ) for period in data['FinancialStatements']['InterimPeriods']['FiscalPeriod']
         ]
     )
 
