@@ -173,12 +173,12 @@ class Soap:
             employees=dict(
                 lastUpdated=general_info['Employees']['@LastUpdated'],
                 value=general_info['Employees']['#text']
-            ),
+            ) if general_info.get('Employees') is not None else None,
             sharesOut=dict(
                 date=general_info['SharesOut']['@Date'],
                 totalFloat=general_info['SharesOut']['@TotalFloat'],
                 value=general_info['SharesOut']['#text']
-            ),
+            ) if general_info.get('SharesOut') is not None else None,
             reportingCurrency=dict(
                 code=general_info['ReportingCurrency']['@Code'],
                 value=general_info['ReportingCurrency']['#text']
