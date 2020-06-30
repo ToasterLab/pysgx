@@ -2594,3 +2594,5 @@ Python wrapper for accessing data from SGX's unofficial API
   #   "email": "investor@singtel.com"
   # }
 ```
+
+Acronyms: [https://interactivebrokers.github.io/tws-api/fundamental_ratios_tags.html](https://interactivebrokers.github.io/tws-api/fundamental_ratios_tags.html)
